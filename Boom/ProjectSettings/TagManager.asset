@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Plants
   - Floor
+  - Food
+  - Enemy
+  - Goal
   layers:
   - Default
   - TransparentFX

@@ -4,11 +4,21 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    Rigidbody rigid;
+    public bool HaveFood { get { return getFood != null; } }
+    public Food GetHaveFood { get { return getFood; } }
+
+    public float moveSpeed = 5f;
+    public float turnSpeed = 180f;
+
+    private Food getFood = null;
+    private Rigidbody rigid;
+    private float walkSpeed = 10.0f;
 
     private void Awake()
     {
-        rigid= GetComponent<Rigidbody>();
+        rigid = GetComponent<Rigidbody>();
+
+        getFood = null;
     }
 
     private void Update()
@@ -18,11 +28,76 @@ public class PlayerController : MonoBehaviour
 
     private void Move()
     {
-        float horizontal = Input.GetAxis("Horizontal");
-        float vertical = Input.GetAxis("Vertical");
+        int forwardAction = 0;
+        int turnAction = 0;
 
-        rigid.MovePosition(transform.position + new Vector3(horizontal, 0, vertical));
+        if (Input.GetKey(KeyCode.W))
+            forwardAction = 1;
+        else if (Input.GetKey(KeyCode.S))
+            forwardAction = -1;
+        if (Input.GetKey(KeyCode.A))
+            turnAction = -1;
+        else if (Input.GetKey(KeyCode.D))
+            turnAction = 1;
+
+        rigid.MovePosition(transform.position + transform.forward * forwardAction * moveSpeed * Time.fixedDeltaTime);
+        transform.Rotate(transform.up * turnAction * turnSpeed * Time.fixedDeltaTime);
     }
 
 
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.transform.CompareTag("Food"))
+        {
+            if (getFood != null) return;
+            Food food = collision.transform.GetComponent<Food>();
+            if (food != null)
+            {
+                getFood = food;
+                GetFood();
+            }
+        }
+        else if (collision.transform.CompareTag("Goal"))
+        {
+            if (getFood)
+            {
+                GoalIn();
+            }
+        }
+
+        if (collision.transform.CompareTag("Enemy"))
+        {
+            if (HaveFood) return;
+            Enemy enemy = collision.transform.GetComponent<Enemy>();
+            if (enemy.HaveFood)
+            {
+                getFood = enemy.GetHaveFood;
+                enemy.LostFood();
+                GetFood();
+            }
+        }
+    }
+
+    private void GoalIn()
+    {
+        getFood.ResetObject();
+        GameManagement.Instance.AddPlayerScore(1);
+        getFood = null;
+    }
+
+    private void GetFood()
+    {
+        getFood.Get();
+        Transform parent = transform.Find("Attach");
+        getFood.transform.SetParent(parent);
+        getFood.transform.localPosition = Vector3.zero;
+        getFood.transform.localRotation = Quaternion.identity;
+    }
+
+    public void LostFood()
+    {
+        getFood.transform.gameObject.SetActive(false);
+        getFood.ResetObject();
+        getFood = null;
+    }
 }
