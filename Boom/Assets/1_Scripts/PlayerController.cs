@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class PlayerController : MonoBehaviour
 {
@@ -13,6 +14,9 @@ public class PlayerController : MonoBehaviour
     private Food getFood = null;
     private Rigidbody rigid;
     private float walkSpeed = 10.0f;
+
+    private bool delay = false;
+    public bool Delay { get { return delay; } }
 
     private void Awake()
     {
@@ -64,11 +68,12 @@ public class PlayerController : MonoBehaviour
                 GoalIn();
             }
         }
-
+        
         if (collision.transform.CompareTag("Enemy"))
         {
             if (HaveFood) return;
             Enemy enemy = collision.transform.GetComponent<Enemy>();
+            if (enemy.Delay) return;
             if (enemy.HaveFood)
             {
                 getFood = enemy.GetHaveFood;
@@ -76,6 +81,12 @@ public class PlayerController : MonoBehaviour
                 GetFood();
             }
         }
+    }
+    private IEnumerator DelayGet()
+    {
+        delay = true;
+        yield return new WaitForSeconds(1f);
+        delay = false;
     }
 
     private void GoalIn()
@@ -87,6 +98,7 @@ public class PlayerController : MonoBehaviour
 
     private void GetFood()
     {
+        StartCoroutine(DelayGet());
         getFood.Get();
         Transform parent = transform.Find("Attach");
         getFood.transform.SetParent(parent);
@@ -96,8 +108,7 @@ public class PlayerController : MonoBehaviour
 
     public void LostFood()
     {
-        getFood.transform.gameObject.SetActive(false);
-        getFood.ResetObject();
+        getFood.Lost();
         getFood = null;
     }
 }

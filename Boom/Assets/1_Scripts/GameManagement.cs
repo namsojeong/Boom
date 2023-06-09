@@ -16,7 +16,7 @@ public class GameManagement : MonoBehaviour
     private Food food;
     private GameObject goal;
     private Enemy enemy;
-    private PlayerController player;
+    private Enemy player;
 
     [Header("Pos")]
     private Transform[] goalSpawnList;
@@ -24,13 +24,17 @@ public class GameManagement : MonoBehaviour
     private Transform playerSpawnPos;
     private Transform enemySpawnPos;
 
+    public Transform GetPlayerTransform { get { return player.transform; } }
+    public Transform GoalTransform { get { return goal.transform; } }
+    public Transform FoodTransform { get { return food.transform; } }
+
     private void Awake()
     {
         Instance = this;
 
         canvas = transform.Find("Canvas");
         scoreText = canvas.transform.Find("ScoreText").GetComponent<TextMeshProUGUI>();
-        player = transform.Find("Player").GetComponent<PlayerController>();
+        player = transform.Find("Player").GetComponent<Enemy>();
         enemy = transform.Find("Enemy").GetComponent<Enemy>();
         goal = transform.Find("Goal").gameObject;
         food = transform.Find("Food").GetComponent<Food>();
@@ -60,6 +64,7 @@ public class GameManagement : MonoBehaviour
         enemy.transform.position = enemySpawnPos.position;
 
         food.ResetObject();
+        food.transform.SetParent(transform);
         food.gameObject.SetActive(true);
     }
 
@@ -76,7 +81,6 @@ public class GameManagement : MonoBehaviour
     public void AddPlayerScore(int addScore)
     {
         playerScore += addScore;
-        Debug.Log(playerScore);
         UpdateScoreUI();
     }
     public void AddEnemyScore(int addScore)

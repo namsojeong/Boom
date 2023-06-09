@@ -9,6 +9,7 @@ TagManager:
   - Food
   - Enemy
   - Goal
+  - Wall
   layers:
   - Default
   - TransparentFX

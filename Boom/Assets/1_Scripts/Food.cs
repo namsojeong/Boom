@@ -30,4 +30,11 @@ public class Food : MonoBehaviour
         rigid.useGravity = false;
         rigid.isKinematic = true;
     }
+    public void Lost()
+    {
+       transform.SetParent(GameManagement.Instance.transform);
+        collider.enabled = true;
+        rigid.useGravity = true;
+        rigid.isKinematic = false;
+    }
 }

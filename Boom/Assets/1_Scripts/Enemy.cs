@@ -13,12 +13,34 @@ public class Enemy : Agent
     public float moveSpeed = 5f;
     public float turnSpeed = 180f;
 
+    private bool delay = false;
+
+    #region Get
     public bool HaveFood { get { return getFood != null; } }
     public Food GetHaveFood { get { return getFood; } }
 
+    public bool Delay { get { return delay; } }
+    #endregion
+
+    #region Distance
+    private float TargetDistance()
+    {
+        return Vector3.Distance(GameManagement.Instance.GetPlayerTransform.position, transform.position);
+    }
+    private float GoalDistance()
+    {
+        return Vector3.Distance(GameManagement.Instance.GoalTransform.position, transform.position);
+    }
+    private float FoodDistance()
+    {
+        return Vector3.Distance(GameManagement.Instance.FoodTransform.position, transform.position);
+    }
+    #endregion
+
+    #region Agent
     public override void Initialize()
     {
-        rigid= GetComponent<Rigidbody>();
+        rigid = GetComponent<Rigidbody>();
     }
 
     public override void OnEpisodeBegin()
@@ -29,29 +51,40 @@ public class Enemy : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        sensor.AddObservation(transform.forward);
+        sensor.AddObservation(transform.forward); // 3
+        sensor.AddObservation(TargetDistance()); // 1
+        sensor.AddObservation(GoalDistance()); // 1
+        sensor.AddObservation(FoodDistance()); // 1
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
         float forwardAmount = 0f;
-        forwardAmount = actions.DiscreteActions[0];
         float turnAmount = 0f;
 
         if (actions.DiscreteActions[1] == 1f)
-        {
             turnAmount = -1;
-        }
         else if (actions.DiscreteActions[1] == 2f)
-        {
-            turnAmount = 1f;
-        }
+            turnAmount = 1;
+        if (actions.DiscreteActions[0] == 1f)
+            forwardAmount = 1;
+        else if (actions.DiscreteActions[0] == 2f)
+            forwardAmount = -1;
 
         rigid.MovePosition(transform.position + transform.forward * forwardAmount * moveSpeed * Time.fixedDeltaTime);
         transform.Rotate(transform.up * turnAmount * turnSpeed * Time.fixedDeltaTime);
 
+        if (HaveFood)
+        {
+            if (GoalDistance() < 4f)
+                AddReward(0.01f);
+        }
+        else
+        {
+            if (FoodDistance() < 4f)
+                AddReward(0.01f);
+        }
         if (MaxStep > 0) AddReward(-1f / MaxStep);
-
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
@@ -62,6 +95,10 @@ public class Enemy : Agent
         if (Input.GetKey(KeyCode.W))
         {
             forwardAction = 1;
+        }
+        if (Input.GetKey(KeyCode.S))
+        {
+            forwardAction = 2;
         }
 
         if (Input.GetKey(KeyCode.A))
@@ -75,11 +112,16 @@ public class Enemy : Agent
         actionsOut.DiscreteActions.Array[0] = forwardAction;
         actionsOut.DiscreteActions.Array[1] = turnAction;
     }
-
+    #endregion
 
 
     private void OnCollisionEnter(Collision collision)
     {
+        if(collision.transform.CompareTag("Wall"))
+        {
+            AddReward(-0.01f);
+        }
+
         if (collision.transform.CompareTag("Food"))
         {
             if (getFood != null) return;
@@ -97,10 +139,12 @@ public class Enemy : Agent
                 GoalIn();
             }
         }
-        else if (collision.transform.CompareTag("Player"))
+
+        if (collision.transform.CompareTag("Player"))
         {
             if (HaveFood) return;
-            PlayerController player = collision.transform.GetComponent<PlayerController>();
+            Enemy player = collision.transform.GetComponent<Enemy>();
+            if (player.Delay) return;
             if (player.HaveFood)
             {
                 getFood = player.GetHaveFood;
@@ -110,16 +154,32 @@ public class Enemy : Agent
         }
 
     }
+    private IEnumerator DelayGet()
+    {
+        delay = true;
+        yield return new WaitForSeconds(1f);
+        delay = false;
+    }
 
     private void GoalIn()
     {
+        AddReward(4);
         getFood.ResetObject();
-        GameManagement.Instance.AddPlayerScore(1);
+        if (gameObject.tag == "Enemy")
+        {
+            GameManagement.Instance.AddEnemyScore(1);
+        }
+        else if (gameObject.tag == "Player")
+        {
+            GameManagement.Instance.AddPlayerScore(1);
+        }
         getFood = null;
     }
 
     private void GetFood()
     {
+        StartCoroutine(DelayGet());
+        AddReward(2);
         getFood.Get();
         Transform parent = transform.Find("Attach");
         getFood.transform.SetParent(parent);
@@ -129,8 +189,7 @@ public class Enemy : Agent
 
     public void LostFood()
     {
-        getFood.transform.gameObject.SetActive(false);
-        getFood.ResetObject();
+        getFood.Lost();
         getFood = null;
     }
 }
