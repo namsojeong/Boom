@@ -13,14 +13,16 @@ public class PlayerController : MonoBehaviour
 
     private Food getFood = null;
     private Rigidbody rigid;
-    private float walkSpeed = 10.0f;
+    private Animator anim;
 
+    private bool isWalk = false;
     private bool delay = false;
     public bool Delay { get { return delay; } }
 
     private void Awake()
     {
         rigid = GetComponent<Rigidbody>();
+        anim = GetComponent<Animator>();
 
         getFood = null;
     }
@@ -29,6 +31,20 @@ public class PlayerController : MonoBehaviour
     {
         Move();
     }
+
+    #region Animator
+    private void WalkAnimation(bool isWalk)
+    {
+         if (isWalk == this.isWalk) return;
+         this.isWalk = isWalk;
+         anim.SetBool("IsWalk", this.isWalk);
+    }
+
+    private void AnimationTrigger(string str)
+    {
+        anim.SetTrigger(str);
+    }
+    #endregion
 
     private void Move()
     {
@@ -91,13 +107,17 @@ public class PlayerController : MonoBehaviour
 
     private void GoalIn()
     {
+        AnimationTrigger("Goal");
         getFood.ResetObject();
         GameManagement.Instance.AddPlayerScore(1);
         getFood = null;
     }
 
+    #region Food
+
     private void GetFood()
     {
+        AnimationTrigger("Eat");
         StartCoroutine(DelayGet());
         getFood.Get();
         Transform parent = transform.Find("Attach");
@@ -111,4 +131,6 @@ public class PlayerController : MonoBehaviour
         getFood.Lost();
         getFood = null;
     }
+
+    #endregion
 }

@@ -1,22 +1,27 @@
-using System.Collections;
 using System.Collections.Generic;
 using TMPro;
-using Unity.MLAgents.Sensors;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManagement : MonoBehaviour
 {
     public static GameManagement Instance = null;
 
     [Header("UI")]
-    private TextMeshProUGUI scoreText;
-    private Transform canvas;
+    [SerializeField] GameObject winPanel;
+    [SerializeField] GameObject losePanel;
+    [SerializeField] GameObject startCanvas;
+
+    private Transform scoreParent;
+    private Transform[] playerScoreList;
+    private Transform[] enemyScoreList;
 
     [Header("Object")]
     private Food food;
     private GameObject goal;
     private Enemy enemy;
-    private Enemy player;
+    private PlayerController player;
 
     [Header("Pos")]
     private Transform[] goalSpawnList;
@@ -31,35 +36,63 @@ public class GameManagement : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        startCanvas.SetActive(true);
+        InitGame();
+    }
 
-        canvas = transform.Find("Canvas");
-        scoreText = canvas.transform.Find("ScoreText").GetComponent<TextMeshProUGUI>();
-        player = transform.Find("Player").GetComponent<Enemy>();
+    public void StartGame()
+    {
+        Time.timeScale = 1.0f;
+        winPanel.SetActive(false);
+        losePanel.SetActive(false);
+        startCanvas.SetActive(false);
+
+        ResetGame();
+    }
+    public void QuitGame()
+    {
+        Application.Quit();
+    }
+
+    private void InitGame()
+    {
+        player = transform.Find("Player").GetComponent<PlayerController>();
         enemy = transform.Find("Enemy").GetComponent<Enemy>();
+
         goal = transform.Find("Goal").gameObject;
         food = transform.Find("Food").GetComponent<Food>();
+
+        scoreParent = transform.Find("Score");
+        playerScoreList = scoreParent.GetChild(0).GetComponentsInChildren<Transform>();
+        enemyScoreList = scoreParent.GetChild(1).GetComponentsInChildren<Transform>();
+
+        goalSpawnList = transform.Find("GoalRandomPos").GetComponentsInChildren<Transform>();
+        foodSpawnList = transform.Find("FoodRandomPos").GetComponentsInChildren<Transform>();
 
         enemySpawnPos = enemy.transform;
         playerSpawnPos = player.transform;
 
-        goalSpawnList = transform.Find("GoalRandomPos").GetComponentsInChildren<Transform>();
-        foodSpawnList = transform.Find("FoodRandomPos").GetComponentsInChildren<Transform>();
+        player.gameObject.SetActive(false);
+        enemy.gameObject.SetActive(false);
     }
-
-    public void ResetGame()
+    private void ResetGame()
     {
-        SettingGame();
+        player.gameObject.SetActive(true);
+        enemy.gameObject.SetActive(true);
+        enemy.ResetEnemy();
 
         playerScore = 0;
         enemyScore = 0;
 
-        UpdateScoreUI();
+        SettingGame();
+        InitScore();
     }
 
     private void SettingGame()
     {
         RandomPosObject(goal, goalSpawnList);
         RandomPosObject(food.gameObject, foodSpawnList);
+        
         player.transform.position = playerSpawnPos.position;
         enemy.transform.position = enemySpawnPos.position;
 
@@ -77,36 +110,46 @@ public class GameManagement : MonoBehaviour
     #region Score
     private int playerScore = 0;
     private int enemyScore = 0;
-    private const int MAX_SCORE = 3;
+    private const int MAX_SCORE = 5;
+    private void InitScore()
+    {
+        for(int i=1;i<playerScoreList.Length;i++)
+        {
+            playerScoreList[i].gameObject.SetActive(false);
+            enemyScoreList[i].gameObject.SetActive(false);
+        }
+    }
     public void AddPlayerScore(int addScore)
     {
         playerScore += addScore;
+        playerScoreList[playerScore].gameObject.SetActive(true);
         UpdateScoreUI();
     }
     public void AddEnemyScore(int addScore)
     {
         enemyScore += addScore;
+        enemyScoreList[enemyScore].gameObject.SetActive(true);
         UpdateScoreUI();
     }
 
-    private void GameOver()
+    private void GameOver(bool isWin)
     {
-        enemy.EndEpisode();
+        //enemy.EndEpisode();
+        if (isWin) winPanel.gameObject.SetActive(true);
+        else losePanel.gameObject.SetActive(true);
+
+        Time.timeScale = 0;
     }
 
     private void UpdateScoreUI()
     {
-        // UI Update
-        string scoreString = playerScore.ToString() + " VS " + enemyScore.ToString();
-        scoreText.text = string.Format(scoreString);
-
         if (playerScore >= MAX_SCORE)
         {
-            GameOver();
+            GameOver(true);
         }
         else if (enemyScore >= MAX_SCORE)
         {
-            GameOver();
+            GameOver(false);
         }
         else
         {

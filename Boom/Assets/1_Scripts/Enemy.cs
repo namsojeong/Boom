@@ -3,17 +3,24 @@ using System.Collections.Generic;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
+using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 
 public class Enemy : Agent
 {
     private Food getFood = null;
-
     private Rigidbody rigid;
+    private Animator anim;
+    
     public float moveSpeed = 5f;
     public float turnSpeed = 180f;
 
+    private bool isWalk = false;
     private bool delay = false;
+
+    private void Awake()
+    {
+    }
 
     #region Get
     public bool HaveFood { get { return getFood != null; } }
@@ -41,12 +48,12 @@ public class Enemy : Agent
     public override void Initialize()
     {
         rigid = GetComponent<Rigidbody>();
+        anim = GetComponent<Animator>();
     }
 
     public override void OnEpisodeBegin()
     {
-        GameManagement.Instance.ResetGame();
-        getFood = null;
+        ResetEnemy();
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -70,6 +77,9 @@ public class Enemy : Agent
             forwardAmount = 1;
         else if (actions.DiscreteActions[0] == 2f)
             forwardAmount = -1;
+
+        if (forwardAmount == 0 && turnAmount == 0) WalkAnimation(false);
+        else WalkAnimation(true);
 
         rigid.MovePosition(transform.position + transform.forward * forwardAmount * moveSpeed * Time.fixedDeltaTime);
         transform.Rotate(transform.up * turnAmount * turnSpeed * Time.fixedDeltaTime);
@@ -114,6 +124,21 @@ public class Enemy : Agent
     }
     #endregion
 
+    #region Animation
+
+    private void WalkAnimation(bool isWalk)
+    {
+        if (isWalk == this.isWalk) return;
+        this.isWalk = isWalk;
+        anim.SetBool("IsWalk", this.isWalk);
+    }
+
+    private void AnimationTrigger(string str)
+    {
+        anim.SetTrigger(str);
+    }
+
+    #endregion
 
     private void OnCollisionEnter(Collision collision)
     {
@@ -143,7 +168,7 @@ public class Enemy : Agent
         if (collision.transform.CompareTag("Player"))
         {
             if (HaveFood) return;
-            Enemy player = collision.transform.GetComponent<Enemy>();
+            PlayerController player = collision.transform.GetComponent<PlayerController>();
             if (player.Delay) return;
             if (player.HaveFood)
             {
@@ -163,6 +188,7 @@ public class Enemy : Agent
 
     private void GoalIn()
     {
+        AnimationTrigger("Goal");
         AddReward(4);
         getFood.ResetObject();
         if (gameObject.tag == "Enemy")
@@ -178,6 +204,7 @@ public class Enemy : Agent
 
     private void GetFood()
     {
+        AnimationTrigger("Eat");
         StartCoroutine(DelayGet());
         AddReward(2);
         getFood.Get();
@@ -190,6 +217,11 @@ public class Enemy : Agent
     public void LostFood()
     {
         getFood.Lost();
+        getFood = null;
+    }
+
+    public void ResetEnemy()
+    {
         getFood = null;
     }
 }
